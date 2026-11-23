@@ -4,7 +4,7 @@
   "hostRequirements": { "cpus": 2 },
   "forwardPorts": [3000],
   "portsAttributes": {
-    "3000": { "label": "마음결 웹앱", "onAutoForward": "openPreview" }
+    "3000": { "label": "마음결 웹앱", "onAutoForward": "openBrowser" }
   },
   "postCreateCommand": "npm install && cp -n .env.example .env && npm run seed",
   "postAttachCommand": { "server": "npm start" },
