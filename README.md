@@ -5,7 +5,7 @@
 위기 신호를 조기에 발견해 자살을 예방하는 것을 목표로 합니다.
 
 ## GitHub에서 바로 실행하기 (Codespaces)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/BunnyeoLee/maeumgyeol?quickstart=1)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/BunnyeoLee/maum?quickstart=1)
 
 1. 위 버튼을 누르거나, 저장소 화면에서 **Code → Codespaces → Create codespace on main** 을 누르세요.
 2. 1~2분 기다리면 설치와 데모 데이터 생성이 끝나고 서버가 자동으로 켜집니다.
