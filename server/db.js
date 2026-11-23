@@ -123,6 +123,8 @@ CREATE INDEX IF NOT EXISTS idx_msgs_session ON messages(session_id);
 // 마이그레이션: 상담자 해석 공개 여부
 if (!db.prepare('PRAGMA table_info(drawings)').all().some((c) => c.name === 'note_shared')) db.exec('ALTER TABLE drawings ADD COLUMN note_shared INTEGER NOT NULL DEFAULT 0');
 
+if (!db.prepare('PRAGMA table_info(chat_sessions)').all().some((c) => c.name === 'ai_active')) db.exec('ALTER TABLE chat_sessions ADD COLUMN ai_active INTEGER NOT NULL DEFAULT 1');
+
 const q = {
   get: (sql, ...p) => db.prepare(sql).get(...p),
   all: (sql, ...p) => db.prepare(sql).all(...p),

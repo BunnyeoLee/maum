@@ -327,3 +327,12 @@ dl.qa { margin: 0; }
 dl.qa dt { color: var(--ink-2); font-size: .88rem; margin-top: 10px; }
 dl.qa dd { margin: 2px 0 0; padding: 8px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px 12px 12px 12px; }
 .sos-fab[hidden] { display: none; }
+
+.bub .who { display: block; font-size: .74rem; font-weight: 600; margin-bottom: 2px; opacity: .75; }
+.bub.them.ai { background: #F1F7F3; border-color: #CFE3D8; }
+.bub.me.ai { background: #5F9C86; }
+.typing { padding: 4px 18px 8px; font-size: .8rem; color: var(--ink-3); background: #F4F8F6; display: flex; align-items: center; gap: 3px; }
+.typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--forest); opacity: .4; animation: blink 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; margin-right: 6px; }
+@keyframes blink { 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .typing span { animation: none; opacity: .8; } }

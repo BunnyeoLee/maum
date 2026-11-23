@@ -189,7 +189,7 @@ async function chats(pane, [sid], _q, onRoute) {
   const list = () => {
     $('#slist', pane).innerHTML = sessions.map((s) => `<button class="sess ${String(s.id) === sid ? 'on' : ''}" data-id="${s.id}">
       <div class="row" style="justify-content:space-between"><b class="small">${e(s.client_name)}</b>${s.risk >= 2 ? riskPill(s.risk, '위기') : ''}</div>
-      <div class="small">${e(s.topic)}</div><div class="tiny">${{ waiting: '⏳ 대기 중', active: `상담 중 · ${e(s.counselor_name)}`, closed: '종료' }[s.status]} · ${fmtTime(s.last_at)}</div></button>`).join('') || '<p class="small muted">진행 중인 상담이 없어요.</p>';
+      <div class="small">${e(s.topic)}</div><div class="tiny">${{ waiting: '⏳ 대기 중 · AI 응대 중', active: `상담 중 · ${e(s.counselor_name)}${s.ai_active ? ' + AI' : ''}`, closed: '종료' }[s.status]} · ${fmtTime(s.last_at)}</div></button>`).join('') || '<p class="small muted">진행 중인 상담이 없어요.</p>';
     $$('.sess', pane).forEach((b) => b.onclick = () => (location.hash = `#/admin/chats/${b.dataset.id}`));
   };
   list();
@@ -207,19 +207,22 @@ async function chats(pane, [sid], _q, onRoute) {
   catch (err) { room.innerHTML = `<div class="panel"><div class="lock">🔒 ${e(err.message)}</div></div>`; return; }
   const mine = data.session.counselor_id === state.user.id;
   room.innerHTML = `<div class="chat"><div class="chat-head"><div><b>${e(data.session.client_name)}</b> <span class="tiny">${e(data.session.client_grp)} · ${e(data.session.topic)}</span>${!mine ? '<div class="tiny" style="color:var(--coral)">긴급 열람 중 — 이 열람은 기록됩니다</div>' : ''}</div>
-    <div class="row"><a class="btn soft sm" href="#/admin/clients/${data.session.user_id}">내담자 정보</a>${data.session.status !== 'closed' && mine ? '<button class="btn soft sm" id="endS">종료</button>' : ''}</div></div>
-    <div class="chat-body" id="cb"></div>
+    <div class="row">${data.session.status !== 'closed' && mine ? `<button class="btn soft sm" id="aiT">${data.session.ai_active ? 'AI 응대 끄기' : 'AI 응대 켜기'}</button>` : ''}<a class="btn soft sm" href="#/admin/clients/${data.session.user_id}">내담자 정보</a>${data.session.status !== 'closed' && mine ? '<button class="btn soft sm" id="endS">종료</button>' : ''}</div></div>
+    <div class="chat-body" id="cb"></div><div class="typing hidden" id="typing"><span></span><span></span><span></span> AI 상담사가 답장을 쓰고 있어요</div>
     ${data.session.status !== 'closed' && mine ? `<form class="chat-input" id="cf"><textarea class="input" id="ct" rows="1" placeholder="공감하며 천천히 답해 주세요"></textarea><button class="btn">보내기</button></form>` : ''}</div>`;
   const cb = $('#cb', room);
   const add = (m) => {
     if ($(`[data-mid="${m.id}"]`, cb)) return;
     const d = document.createElement('div'); d.dataset.mid = m.id;
-    d.className = `bub ${m.sender_role === 'system' ? 'sys' : m.sender_role === 'client' ? 'them' : 'me'} ${m.risk >= 2 ? 'flag' : ''}`;
-    d.innerHTML = `${e(m.body)}${m.sender_role !== 'system' ? `<small>${fmtTime(m.created_at).split(' ').pop()}${m.risk >= 2 ? ' · ⚠ 위기 표현 감지' : ''}</small>` : ''}`;
+    d.className = `bub ${m.sender_role === 'system' ? 'sys' : m.sender_role === 'client' ? 'them' : m.sender_role === 'ai' ? 'me ai' : 'me'} ${m.risk >= 2 ? 'flag' : ''}`;
+    d.innerHTML = `${m.sender_role === 'ai' ? '<b class="who">🌿 AI 상담사</b>' : ''}${e(m.body)}${m.sender_role !== 'system' ? `<small>${fmtTime(m.created_at).split(' ').pop()}${m.risk >= 2 ? ' · ⚠ 위기 표현 감지' : ''}</small>` : ''}`;
     cb.appendChild(d); cb.scrollTop = cb.scrollHeight;
   };
   data.messages.forEach(add);
-  onRoute(on('message', (m) => m.session_id === data.session.id && add(m)));
+  onRoute(on('message', (m) => { if (m.session_id === data.session.id) { add(m); $('#typing', room).classList.add('hidden'); } }));
+  onRoute(on('typing', (t) => t.session_id === data.session.id && $('#typing', room).classList.toggle('hidden', !t.on)));
+  const aiT = $('#aiT', room);
+  if (aiT) aiT.onclick = async () => { await api(`/chat/sessions/${sid}/ai`, { body: { on: !data.session.ai_active } }); chats(pane, [sid], null, onRoute); };
   const f = $('#cf', room);
   if (f) {
     const ta = $('#ct', room);

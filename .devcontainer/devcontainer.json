@@ -29,5 +29,8 @@
       }
     }
   },
-  "postStartCommand": "nohup bash -c 'npm start > server.log 2>&1 &'"
+  "postStartCommand": "nohup bash -c 'npm start > server.log 2>&1 &'",
+  "containerEnv": {
+    "TZ": "Asia/Seoul"
+  }
 }

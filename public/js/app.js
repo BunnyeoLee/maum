@@ -408,9 +408,9 @@ async function chatRoom(id) {
   const data = await api(`/chat/sessions/${id}/messages`);
   const s = data.session;
   app.innerHTML = `<div class="chat">
-    <div class="chat-head"><div><b>${e(s.topic)}</b><div class="tiny" id="cstat">${s.status === 'waiting' ? '상담 선생님을 기다리는 중이에요' : s.status === 'active' ? `${e(s.counselor_name)} 선생님과 대화 중` : '종료된 상담'}</div></div>
+    <div class="chat-head"><div><b>${e(s.topic)}</b><div class="tiny" id="cstat">${s.status === 'closed' ? '종료된 상담' : s.counselor_id && !s.ai_active ? `${e(s.counselor_name)} 선생님과 대화 중` : '🌿 AI 상담사와 대화 중 · 상담 선생님 연결 대기'}</div></div>
       ${s.status !== 'closed' ? '<button class="btn soft sm" id="endC">상담 마치기</button>' : '<a class="btn soft sm" href="#/chat">새 상담</a>'}</div>
-    <div class="chat-body" id="cb"></div>
+    <div class="chat-body" id="cb"></div><div class="typing hidden" id="typing"><span></span><span></span><span></span> 답장을 쓰고 있어요</div>
     ${s.status !== 'closed' ? `<form class="chat-input" id="cf"><textarea class="input" id="ct" placeholder="편하게 적어 주세요" rows="1" maxlength="2000"></textarea><button class="btn">보내기</button></form>` : ''}
   </div><p class="tiny" style="margin-top:8px">급하게 도움이 필요하면 오른쪽 아래 SOS 버튼을 누르거나 109에 전화하세요.</p>`;
   const cb = $('#cb');
@@ -419,12 +419,13 @@ async function chatRoom(id) {
     const mine = m.sender_id === state.user.id;
     const d = document.createElement('div');
     d.dataset.mid = m.id;
-    d.className = `bub ${m.sender_role === 'system' ? 'sys' : mine ? 'me' : 'them'}`;
-    d.innerHTML = `${e(m.body)}${m.sender_role !== 'system' ? `<small>${fmtTime(m.created_at).split(' ').pop()}</small>` : ''}`;
+    d.className = `bub ${m.sender_role === 'system' ? 'sys' : mine ? 'me' : m.sender_role === 'ai' ? 'them ai' : 'them'}`;
+    d.innerHTML = `${m.sender_role === 'ai' ? '<b class="who">🌿 AI 상담사</b>' : m.sender_role === 'counselor' ? '<b class="who">상담 선생님</b>' : ''}${e(m.body)}${m.sender_role !== 'system' ? `<small>${fmtTime(m.created_at).split(' ').pop()}</small>` : ''}`;
     cb.appendChild(d); cb.scrollTop = cb.scrollHeight;
   };
   data.messages.forEach(add);
-  onRoute(on('message', (m) => { if (m.session_id === s.id) { add(m); if (m.sender_role === 'system' && /들어왔어요/.test(m.body)) $('#cstat').textContent = '상담 선생님과 대화 중'; } }));
+  onRoute(on('message', (m) => { if (m.session_id === s.id) { add(m); $('#typing').classList.add('hidden'); if (m.sender_role === 'system' && /들어왔어요/.test(m.body)) $('#cstat').textContent = '상담 선생님과 대화 중'; if (m.sender_role === 'system' && /AI 상담사가 다시/.test(m.body)) $('#cstat').textContent = '🌿 AI 상담사와 상담 선생님이 함께해요'; } }));
+  onRoute(on('typing', (t) => { if (t.session_id === s.id) { $('#typing').classList.toggle('hidden', !t.on); cb.scrollTop = cb.scrollHeight; } }));
   const f = $('#cf');
   if (f) {
     const ta = $('#ct');

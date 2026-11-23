@@ -67,7 +67,7 @@ export function on(evt, fn) { (state.listeners[evt] ||= new Set()).add(fn); retu
 export function connectStream() {
   if (es) es.close();
   es = new EventSource('/api/stream');
-  ['message', 'alert', 'session', 'drawing', 'drawing-ai', 'drawing-interpreted'].forEach((evt) =>
+  ['message', 'alert', 'session', 'drawing', 'drawing-ai', 'drawing-interpreted', 'typing'].forEach((evt) =>
     es.addEventListener(evt, (ev) => { const d = JSON.parse(ev.data); (state.listeners[evt] || []).forEach((fn) => fn(d)); }));
 }
 export function disconnectStream() { if (es) es.close(); es = null; }

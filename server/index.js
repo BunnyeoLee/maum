@@ -9,6 +9,7 @@ const mailer = require('./mailer');
 const { publicDefs, scoreTest, CATEGORIES, TESTS } = require('./tests');
 const { detectText, DRAW_TASKS, analyzeDrawing } = require('./risk');
 const ai = require('./ai');
+const counselor = require('./counselor');
 
 const app = express();
 app.disable('x-powered-by');
@@ -393,6 +394,28 @@ function addMessage(sessionId, senderId, role, body, risk = 0) {
   return msg;
 }
 
+// AI 상담사 응답 (상담 선생님이 배정되기 전, 또는 AI 응대가 켜져 있을 때)
+const aiBusy = new Set();
+async function aiRespond(sessionId) {
+  const s = q.get('SELECT * FROM chat_sessions WHERE id=?', sessionId);
+  if (!s || s.status === 'closed' || !s.ai_active || aiBusy.has(sessionId)) return;
+  aiBusy.add(sessionId);
+  const notify = (on) => { push(s.user_id, 'typing', { session_id: s.id, on }); if (s.counselor_id) push(s.counselor_id, 'typing', { session_id: s.id, on }); };
+  try {
+    notify(true);
+    const user = q.get('SELECT * FROM users WHERE id=?', s.user_id);
+    const rows = q.all("SELECT sender_role, body_enc, risk FROM messages WHERE session_id=? AND sender_role IN ('client','ai','counselor') ORDER BY id DESC LIMIT 30", s.id).reverse();
+    const history = rows.map((m) => ({ role: m.sender_role === 'client' ? 'user' : 'assistant', content: dec(m.body_enc) }));
+    const lastRisk = rows.length ? rows[rows.length - 1].risk : 0;
+    const started = Date.now();
+    const r = await counselor.reply(history, user, lastRisk);
+    await new Promise((ok) => setTimeout(ok, Math.max(0, 1200 - (Date.now() - started)))); // 너무 기계적으로 빠르지 않게
+    const now = q.get('SELECT ai_active, status FROM chat_sessions WHERE id=?', s.id);
+    if (r.text && now.ai_active && now.status !== 'closed') addMessage(s.id, 0, 'ai', r.text);
+  } catch (e) { console.error('[AI 상담사 오류]', e.message); }
+  finally { notify(false); aiBusy.delete(sessionId); }
+}
+
 app.get('/api/chat/sessions', auth, (req, res) => {
   let rows;
   if (!isStaff(req.user)) rows = q.all('SELECT * FROM chat_sessions WHERE user_id=? ORDER BY id DESC', req.user.id);
@@ -404,7 +427,8 @@ app.post('/api/chat/sessions', auth, wrap(async (req, res) => {
   if (open) return res.json({ session: sessionView(open) });
   const topic = String(req.body.topic || '이야기하고 싶어요').slice(0, 60);
   const id = Number(q.run('INSERT INTO chat_sessions (user_id, topic) VALUES (?,?)', req.user.id, topic).lastInsertRowid);
-  addMessage(id, 0, 'system', '상담 요청이 접수되었어요. 상담 선생님이 곧 들어올 거예요. 기다리는 동안 편하게 마음을 적어 두셔도 괜찮아요. 이 대화는 비밀이 보장되며, 생명과 안전이 위험한 경우에만 보호를 위해 예외적으로 확인될 수 있어요.');
+  addMessage(id, 0, 'system', '상담 요청이 접수되었어요. 상담 선생님이 연결될 때까지 AI 상담사가 먼저 이야기를 들을게요. 이 대화는 비밀이 보장되며, 생명과 안전이 위험한 경우에만 보호를 위해 예외적으로 확인될 수 있어요.');
+  addMessage(id, 0, 'ai', `안녕하세요, ${req.user.name} 님. 저는 마음결의 AI 상담사예요. '${topic}'에 대해 이야기하고 싶으셨군요. 어떤 일이 있었는지 편하게 들려주세요. 천천히 써도 괜찮아요.`);
   res.json({ session: sessionView(q.get('SELECT * FROM chat_sessions WHERE id=?', id)) });
 }));
 app.get('/api/chat/sessions/:id/messages', auth, wrap(async (req, res) => {
@@ -432,18 +456,28 @@ app.post('/api/chat/sessions/:id/messages', auth, wrap(async (req, res) => {
       createAlert(s.user_id, 'chat', s.id, risk, `채팅 상담에서 위기 표현 감지 (${risk === 3 ? '긴급' : '위험'})`);
       const msg = addMessage(s.id, req.user.id, 'client', body, risk);
       if (risk > prev) addMessage(s.id, 0, 'system', '지금 많이 힘드시군요. 이야기해 주어서 정말 고마워요. 당신의 안전이 가장 중요해요. 상담 선생님께 바로 알렸어요. 지금 위험하다고 느껴지면 109(24시간 자살예방상담)나 119로 바로 연락해 주세요.');
-      return res.json({ message: msg, sos: true, risk });
+      res.json({ message: msg, sos: true, risk });
+      return aiRespond(s.id);
     }
     if (risk === 1) createAlert(s.user_id, 'chat', s.id, 1, '채팅 상담에서 주의 표현 감지 (관심)');
   }
   res.json({ message: addMessage(s.id, req.user.id, mine ? 'client' : 'counselor', body, risk), sos: false });
+  if (mine) aiRespond(s.id);
+}));
+app.post('/api/chat/sessions/:id/ai', auth, staffOnly, wrap(async (req, res) => {
+  const s = q.get('SELECT * FROM chat_sessions WHERE id=?', req.params.id);
+  if (!s || s.counselor_id !== req.user.id) throw fail(403, '담당 상담사만 AI 응대를 바꿀 수 있어요.');
+  const on = !!req.body.on;
+  q.run('UPDATE chat_sessions SET ai_active=? WHERE id=?', on ? 1 : 0, s.id);
+  addMessage(s.id, 0, 'system', on ? 'AI 상담사가 다시 함께 대화를 도와요.' : 'AI 상담사는 물러나고, 상담 선생님이 직접 대화해요.');
+  res.json({ ok: true });
 }));
 app.post('/api/chat/sessions/:id/claim', auth, staffOnly, wrap(async (req, res) => {
   const s = q.get('SELECT * FROM chat_sessions WHERE id=?', req.params.id);
   if (!s || s.status === 'closed') throw fail(400, '배정할 수 없는 상담입니다.');
   if (s.counselor_id && s.counselor_id !== req.user.id) throw fail(409, '이미 다른 상담사가 배정되었습니다.');
-  q.run("UPDATE chat_sessions SET counselor_id=?, status='active' WHERE id=?", req.user.id, s.id);
-  addMessage(s.id, 0, 'system', `${req.user.name} 상담 선생님이 들어왔어요.`);
+  q.run("UPDATE chat_sessions SET counselor_id=?, status='active', ai_active=0 WHERE id=?", req.user.id, s.id);
+  addMessage(s.id, 0, 'system', `${req.user.name} 상담 선생님이 들어왔어요. 지금부터는 선생님이 직접 이야기를 나눠요.`);
   res.json({ ok: true });
 }));
 app.post('/api/chat/sessions/:id/close', auth, wrap(async (req, res) => {
@@ -636,6 +670,7 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'in
 if (require.main === module) {
   const server = app.listen(PORT, () => {
     console.log(`\n🌿 마음결 서버 실행 중 → http://localhost:${PORT}`);
+    console.log(`   AI 상담사: ${counselor.provider()}`);
     console.log(`   메일: ${mailer.smtpReady ? 'SMTP 발송' : '개발 모드(관리자 메일함에 저장, 인증번호는 화면에 표시)'} · AI 해석: ${ai.enabled ? '사용 (' + ai.MODEL + ')' : '미사용'}\n`);
   });
   server.on('error', (err) => {
