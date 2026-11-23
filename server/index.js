@@ -16,7 +16,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'same-origin');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // Codespaces 편집기 안의 미리보기(iframe)에서도 열리도록, Codespaces에서는 프레임 차단을 끔
+  if (!process.env.CODESPACE_NAME) res.setHeader('X-Frame-Options', 'DENY');
   next();
 });
 app.use(express.static(path.join(__dirname, '..', 'public')));
