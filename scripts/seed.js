@@ -39,7 +39,7 @@ const { q } = require('../server/db');
   await b('/tests/ai', { answers: [4, 3, 3, 4, 3, 3, 2, 3, 2, 1] });
   await b('/moods', { score: 3, note: '' });
 
-  const c = await signup({ name: '이선생', email: 'teacher.lee@demo.kr', phone: '010-2000-0003', grp: 'teacher', birth_year: 1985 });
+  const c = await signup({ name: '이선생', email: 'teacher.lee@demo.kr', phone: '010-2000-0003', grp: 'teacher', birth_year: 1985, teacher_code: 'maum2026' });
   await c('/tests/k6', { answers: [3, 2, 3, 2, 4, 2] });
   await c('/tests/gad7', { answers: [2, 2, 3, 2, 1, 2, 1] });
 

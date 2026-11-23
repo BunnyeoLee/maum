@@ -152,6 +152,7 @@ function signupForm(el) {
     <label class="field"><span>메일 주소 (검사 결과와 인증번호를 받아요)</span><input class="input" name="email" type="email" required></label>
     <label class="field"><span>휴대전화 번호</span><input class="input" name="phone" type="tel" inputmode="numeric" placeholder="010-1234-5678" required></label>
     <div class="field"><span>나는</span><div class="seg">${Object.entries(GRP).map(([k, v], i) => `<label><input type="radio" name="grp" value="${k}" ${i === 3 ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div></div>
+    <label class="field hidden" id="teacherCode"><span>교사 인증코드</span><input class="input" name="teacher_code" autocomplete="off" placeholder="학교(기관)에서 받은 코드를 입력하세요"></label>
     <label class="field"><span>태어난 해 (선택)</span><select class="input" name="birth_year"><option value="">선택 안 함</option>${years.map((y) => `<option>${y}</option>`).join('')}</select></label>
     <div id="guardian" class="hidden panel" style="margin-bottom:14px;background:var(--mist)">
       <p class="small" style="margin-bottom:10px">만 14세 미만은 보호자의 동의가 필요해요.</p>
@@ -172,14 +173,20 @@ function signupForm(el) {
     <div class="err" id="serr"></div>
     <button class="btn block" style="margin-top:6px">가입하고 인증번호 받기</button></form>`;
   const f = $('#sf', el);
-  const toggleG = () => { const y = Number(f.birth_year.value); const age = y ? new Date().getFullYear() - y : 99; $('#guardian', el).classList.toggle('hidden', !(f.grp.value === 'elem' || age < 14)); };
+  const toggleG = () => {
+    const y = Number(f.birth_year.value); const age = y ? new Date().getFullYear() - y : 99;
+    $('#guardian', el).classList.toggle('hidden', !(f.grp.value === 'elem' || age < 14));
+    const isT = f.grp.value === 'teacher';
+    $('#teacherCode', el).classList.toggle('hidden', !isT);
+    f.teacher_code.required = isT;
+  };
   f.addEventListener('change', toggleG);
   f.onsubmit = async (ev) => {
     ev.preventDefault();
     $('#serr', el).textContent = '';
     try {
       const r = await api('/auth/signup', { body: {
-        name: f.name.value, email: f.email.value, phone: f.phone.value, grp: f.grp.value, birth_year: f.birth_year.value || null,
+        name: f.name.value, email: f.email.value, phone: f.phone.value, grp: f.grp.value, birth_year: f.birth_year.value || null, teacher_code: f.teacher_code.value,
         guardian_name: f.guardian_name.value, guardian_phone: f.guardian_phone.value, email_results: f.email_results.checked,
         consent: { privacy: f.c_privacy.checked, sensitive: f.c_sensitive.checked, crisis: f.c_crisis.checked, guardian: f.c_guardian.checked },
       } });

@@ -134,6 +134,8 @@ app.post('/api/auth/signup', wrap(async (req, res) => {
   if (!/^01\d{8,9}$/.test(phone)) throw fail(400, '휴대전화 번호를 확인해 주세요. (예: 010-1234-5678)');
   if (!b.name || String(b.name).trim().length < 1) throw fail(400, '이름(또는 별명)을 입력해 주세요.');
   if (!GRP_LABEL[b.grp]) throw fail(400, '대상 구분을 선택해 주세요.');
+  if (b.grp === 'teacher' && String(b.teacher_code || '').trim() !== (process.env.TEACHER_CODE || 'maum2026'))
+    throw fail(400, '교사 인증코드가 맞지 않아요. 학교(기관) 담당자에게 받은 코드를 입력해 주세요.');
   if (!b.consent?.privacy || !b.consent?.sensitive || !b.consent?.crisis) throw fail(400, '필수 동의 항목에 모두 동의해 주세요.');
   const by = b.birth_year ? Number(b.birth_year) : null;
   const age = by ? new Date().getFullYear() - by : null;
