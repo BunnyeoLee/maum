@@ -1,15 +1,33 @@
 {
   "name": "마음결 (Maeumgyeol)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
-  "hostRequirements": { "cpus": 2 },
-  "forwardPorts": [3000],
+  "hostRequirements": {
+    "cpus": 2
+  },
+  "forwardPorts": [
+    3000
+  ],
   "portsAttributes": {
-    "3000": { "label": "마음결 웹앱", "onAutoForward": "openBrowser" }
+    "3000": {
+      "label": "마음결 웹앱",
+      "onAutoForward": "openBrowser"
+    }
   },
   "postCreateCommand": "npm install && cp -n .env.example .env && npm run seed",
-  "postAttachCommand": { "server": "npm start" },
+  "postAttachCommand": {
+    "server": "sleep 2; tail -n 5 server.log 2>/dev/null; npm start"
+  },
   "customizations": {
-    "codespaces": { "openFiles": ["README.md"] },
-    "vscode": { "settings": { "files.encoding": "utf8" } }
-  }
+    "codespaces": {
+      "openFiles": [
+        "README.md"
+      ]
+    },
+    "vscode": {
+      "settings": {
+        "files.encoding": "utf8"
+      }
+    }
+  },
+  "postStartCommand": "nohup bash -c 'npm start > server.log 2>&1 &'"
 }

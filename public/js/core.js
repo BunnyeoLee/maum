@@ -2,16 +2,23 @@
 export const state = { user: null, devMail: false, ai: false, tests: null, categories: null, tasks: null, listeners: {} };
 
 export async function api(path, opts = {}) {
-  const res = await fetch('/api' + path, {
+  let res;
+  try {
+    res = await fetch('/api' + path, {
     method: opts.method || (opts.body ? 'POST' : 'GET'),
     headers: opts.body ? { 'Content-Type': 'application/json' } : {},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
     credentials: 'same-origin',
-  });
-  const data = await res.json().catch(() => ({}));
+    });
+  } catch {
+    throw new Error('서버에 연결할 수 없어요. 인터넷 연결과 서버 실행 상태를 확인한 뒤 새로고침해 주세요.');
+  }
+  const isJson = (res.headers.get('content-type') || '').includes('application/json');
+  const data = isJson ? await res.json().catch(() => ({})) : {};
   if (!res.ok) {
     if (res.status === 401 && state.user) { state.user = null; location.hash = '#/'; }
-    throw new Error(data.error || '요청을 처리하지 못했습니다.');
+    if (!isJson) throw new Error(`서버가 응답하지 않아요 (오류 ${res.status}). 서버가 꺼져 있거나 잠든 상태일 수 있어요. 터미널에서 npm start 로 서버를 켠 뒤 새로고침해 주세요.`);
+    throw new Error(data.error || `요청을 처리하지 못했어요 (오류 ${res.status}).`);
   }
   return data;
 }

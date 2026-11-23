@@ -627,12 +627,17 @@ admin.post('/staff/:id/toggle', adminOnly, wrap(async (req, res) => {
 app.use('/api/admin', admin);
 
 app.use('/api', (req, res) => res.status(404).json({ error: '없는 경로입니다.' }));
+app.use((err, req, res, next) => { console.error(err); res.status(err.status || 500).json({ error: err.type === 'entity.too.large' ? '보내는 데이터가 너무 커요.' : '서버에서 오류가 났어요. 잠시 후 다시 시도해 주세요.' }); });
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`\n🌿 마음결 서버 실행 중 → http://localhost:${PORT}`);
     console.log(`   메일: ${mailer.smtpReady ? 'SMTP 발송' : '개발 모드(관리자 메일함에 저장, 인증번호는 화면에 표시)'} · AI 해석: ${ai.enabled ? '사용 (' + ai.MODEL + ')' : '미사용'}\n`);
+  });
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') { console.log(`🌿 마음결 서버가 이미 ${PORT}번 포트에서 실행 중이에요. 브라우저에서 새로고침해 보세요.`); process.exit(0); }
+    throw err;
   });
 }
 module.exports = { app, createAlert };
