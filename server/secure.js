@@ -7,8 +7,8 @@ const { DATA_DIR } = require('./db');
 function loadKey() {
   if (process.env.DATA_KEY) {
     const k = Buffer.from(process.env.DATA_KEY, 'base64');
-    if (k.length !== 32) throw new Error('DATA_KEY는 base64로 인코딩된 32바이트여야 합니다.');
-    return k;
+    // 32바이트 base64가 아니면(예: Render 자동 생성값) 문자열을 SHA-256으로 변환해 키로 사용
+    return k.length === 32 ? k : crypto.createHash('sha256').update(process.env.DATA_KEY).digest();
   }
   const f = path.join(DATA_DIR, '.data_key');
   if (!fs.existsSync(f)) {

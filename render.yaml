@@ -1,0 +1,41 @@
+# Render 무료 서버 배포 설정 (Blueprint)
+# Render 대시보드 → New → Blueprint → 이 저장소 선택 → 아래 값들을 입력하면 자동 배포됩니다.
+services:
+  - type: web
+    name: maum
+    runtime: node
+    plan: free
+    region: singapore          # 한국과 가장 가까운 지역
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true           # GitHub에 올리면 자동으로 다시 배포
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: TZ
+        value: Asia/Seoul
+      - key: NODE_ENV
+        value: production
+      - key: DATA_KEY            # 상담 내용 암호화 키 (자동 생성 — 절대 바꾸거나 지우지 마세요)
+        generateValue: true
+      - key: TEACHER_CODE
+        value: maum2026
+      - key: ADMIN_EMAIL         # 관리자 로그인 메일
+        sync: false
+      - key: ADMIN_PHONE         # 관리자 로그인 연락처
+        sync: false
+      - key: ADMIN_NAME
+        value: 관리자
+      - key: TURSO_DATABASE_URL  # Turso 데이터베이스 주소 (libsql://...)
+        sync: false
+      - key: TURSO_AUTH_TOKEN    # Turso 토큰
+        sync: false
+      - key: BREVO_API_KEY       # Brevo API 키 (메일 발송)
+        sync: false
+      - key: MAIL_FROM_EMAIL     # Brevo에서 인증한 보내는 사람 메일
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: 마음결
+      - key: GITHUB_MODELS_TOKEN # (선택) AI 상담사용 GitHub 토큰 (models:read 권한)
+        sync: false

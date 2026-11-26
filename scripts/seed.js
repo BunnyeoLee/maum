@@ -1,29 +1,30 @@
 // 데모 데이터 만들기: node scripts/seed.js  (개발 모드에서만 — SMTP 미설정 상태)
 require('../server/env');
-const { app } = require('../server/index');
+const { app, boot } = require('../server/index');
 const { q } = require('../server/db');
 
 (async () => {
+  await boot;
   const srv = app.listen(0);
   const base = `http://127.0.0.1:${srv.address().port}/api`;
   const login = async (email, phone) => {
     const r = await (await fetch(base + '/auth/request-code', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, phone }) })).json();
     if (!r.devCode) throw new Error('개발 모드가 아니어서 데모 데이터를 만들 수 없습니다: ' + JSON.stringify(r));
-    q.run('UPDATE login_codes SET sent_at=0 WHERE email=?', email);
+    await q.run('UPDATE login_codes SET sent_at=0 WHERE email=?', email);
     const v = await fetch(base + '/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, phone, code: r.devCode }) });
     const cookie = v.headers.get('set-cookie').split(';')[0];
     return (path, body) => fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', cookie }, body: body && JSON.stringify(body) }).then((x) => x.json());
   };
   const signup = async (u) => {
-    if (!q.get('SELECT 1 FROM users WHERE email=?', u.email)) {
+    if (!(await q.get('SELECT 1 FROM users WHERE email=?', u.email))) {
       const r = await (await fetch(base + '/auth/signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...u, consent: { privacy: true, sensitive: true, crisis: true, guardian: true } }) })).json();
       if (r.error) throw new Error(r.error);
-      q.run('UPDATE login_codes SET sent_at=0 WHERE email=?', u.email);
+      await q.run('UPDATE login_codes SET sent_at=0 WHERE email=?', u.email);
     }
     return login(u.email, u.phone.replace(/\D/g, ''));
   };
-  if (!q.get("SELECT 1 FROM users WHERE email='counselor@maeumgyeol.local'"))
-    q.run("INSERT INTO users (email, phone, name, grp, role) VALUES ('counselor@maeumgyeol.local','01011112222','김하늘 상담사','adult','counselor')");
+  if (!(await q.get("SELECT 1 FROM users WHERE email='counselor@maeumgyeol.local'")))
+    await q.run("INSERT INTO users (email, phone, name, grp, role) VALUES ('counselor@maeumgyeol.local','01011112222','김하늘 상담사','adult','counselor')");
 
   const a = await signup({ name: '서준', email: 'seojun@demo.kr', phone: '010-2000-0001', grp: 'high', birth_year: 2009 });
   await a('/tests/phq9', { answers: [2, 3, 2, 3, 1, 3, 2, 1, 1] });

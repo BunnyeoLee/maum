@@ -15,9 +15,60 @@
 > Codespaces는 무료 계정 기준 월 120 코어시간(2코어로 약 60시간)까지 무료입니다. 사용하지 않을 땐 Codespace를 **중지(Stop)** 하세요.
 > Codespaces는 시연·수업·시범 운영용입니다. 실제 운영은 아래 '운영 전 꼭 확인하세요'를 참고해 상시 서버(Render, 학교 서버 등)에 올리세요.
 
+## 무료 서버에 올려 고정 주소로 운영하기 (Render + Turso + Brevo)
+GitHub 저장소를 무료 서버에 연결하면 `https://maum.onrender.com` 같은 **고정 주소**가 생기고, GitHub에 코드를 올릴 때마다 자동으로 다시 배포됩니다. 모두 무료이며 신용카드가 필요 없습니다.
+
+| 서비스 | 역할 | 무료 한도 |
+|---|---|---|
+| Render | 웹 서버 | 무료 웹 서비스 (15분 동안 방문이 없으면 잠들고, 다음 접속 때 깨어나는 데 1분쯤 걸림) |
+| Turso | 데이터베이스 (가입·검사·상담 기록 저장) | DB 100개, 5GB |
+| Brevo | 인증번호·결과 메일 발송 | 하루 300통 |
+| GitHub Models | AI 상담사 (선택) | 무료 |
+
+### 1단계. Turso — 데이터베이스 만들기 (약 3분)
+1. https://turso.tech 접속 → **Sign up** → GitHub 계정으로 가입
+2. **Create Database** → 이름 `maum`, 지역은 **Tokyo**(또는 가장 가까운 곳) 선택 → 만들기
+3. 만든 데이터베이스를 열고 **Database URL**(`libsql://maum-...turso.io`)을 복사해 둡니다.
+4. **Create Token**(또는 Generate Token) → 만료 **Never** → 나온 토큰을 복사해 둡니다. (한 번만 보여요)
+
+### 2단계. Brevo — 메일 발송 준비 (약 5분)
+1. https://www.brevo.com 가입 (무료 플랜)
+2. 오른쪽 위 메뉴 → **Senders, domains & dedicated IPs → Senders → Add a sender** → 보내는 사람 이름 `마음결`, 메일은 본인 메일 → 그 메일함으로 온 인증 메일에서 확인
+3. 오른쪽 위 메뉴 → **SMTP & API → API Keys → Generate a new API key** → 키(`xkeysib-...`)를 복사해 둡니다.
+> 개인 메일(gmail 등)로 보내면 받는 사람의 스팸함에 들어갈 수 있어요. 처음 안내할 때 "스팸함도 확인해 주세요"라고 알려 주세요.
+
+### 3단계. (선택) GitHub 토큰 — AI 상담사용
+1. https://github.com/settings/personal-access-tokens/new 접속
+2. 이름 `maum-ai`, 만료일 선택 → **Permissions → Account permissions → Models → Read-only**
+3. **Generate token** → 토큰(`github_pat_...`)을 복사해 둡니다.
+> 건너뛰면 AI 상담사가 내장 공감 응답으로 대답합니다.
+
+### 4단계. Render — 서버 올리기 (약 5분)
+1. https://render.com 접속 → **Get Started** → GitHub 계정으로 가입
+2. **New + → Blueprint** → GitHub 저장소 목록에서 **maum** 선택 (안 보이면 *Configure GitHub* 로 저장소 접근 허용)
+3. 입력 칸이 나오면 아래처럼 채웁니다.
+   | 항목 | 넣을 값 |
+   |---|---|
+   | ADMIN_EMAIL | 관리자로 쓸 내 메일 |
+   | ADMIN_PHONE | 관리자로 쓸 내 휴대전화 번호 |
+   | TURSO_DATABASE_URL | 1단계의 Database URL |
+   | TURSO_AUTH_TOKEN | 1단계의 토큰 |
+   | BREVO_API_KEY | 2단계의 API 키 |
+   | MAIL_FROM_EMAIL | 2단계에서 인증한 보내는 메일 |
+   | GITHUB_MODELS_TOKEN | 3단계 토큰 (안 했으면 비워 두기) |
+4. **Apply** → 3~5분 기다리면 `https://maum-xxxx.onrender.com` 주소가 생깁니다.
+5. 그 주소로 들어가 **ADMIN_EMAIL / ADMIN_PHONE** 으로 로그인 → 메일로 온 인증번호 입력 → 관리 콘솔
+6. 관리 콘솔 → **상담사 관리**에서 상담 선생님 계정을 추가하고, 주소를 학생·선생님들에게 공유하세요.
+
+### 꼭 지켜 주세요
+- Render의 **Environment** 화면에 있는 `DATA_KEY` 값을 복사해 안전한 곳에 보관하세요. 이 키가 바뀌거나 없어지면 저장된 상담 내용을 읽을 수 없습니다.
+- 관리 콘솔 첫 화면에 빨간 "임시 상태" 안내가 보이면 Turso 설정이 빠진 것입니다. 노란 "시험 모드" 안내가 보이면 Brevo 설정이 빠진 것입니다(이때는 인증번호가 화면에 그대로 보여 보안에 취약합니다).
+- 무료 서버는 잠들 수 있어 **24시간 위기 대응을 보장하지 않습니다.** 위기 알림 메일(ALERT_EMAILS)을 받을 담당자와 대응 절차를 꼭 정해 두세요.
+- 코드를 고친 뒤 GitHub에 올리면(push) Render가 자동으로 다시 배포합니다.
+
 ## 내 컴퓨터에서 실행하기
 ```bash
-# Node.js 22.13 이상 필요 (내장 SQLite 사용, 별도 DB 설치 불필요)
+# Node.js 22 이상 필요 (데이터는 data/ 폴더에 저장, 별도 DB 설치 불필요)
 npm install
 cp .env.example .env      # 필요 시 수정
 npm run seed              # (선택) 데모 내담자·검사·알림 데이터

@@ -1,15 +1,19 @@
-// 데이터베이스 (Node.js 내장 SQLite 사용 — 별도 설치 불필요, Node 22.13+)
+// 데이터베이스
+// - TURSO_DATABASE_URL 이 있으면 Turso(클라우드 SQLite, 무료)에 저장 → 무료 서버(Render)에서도 데이터 유지
+// - 없으면 data/maeumgyeol.db 파일에 저장 (내 컴퓨터, Codespaces)
 const path = require('path');
 const fs = require('fs');
-const { DatabaseSync } = require('node:sqlite');
+const { createClient } = require('@libsql/client');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 fs.mkdirSync(path.join(DATA_DIR, 'drawings'), { recursive: true });
 
-const db = new DatabaseSync(path.join(DATA_DIR, 'maeumgyeol.db'));
-db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+const REMOTE = !!process.env.TURSO_DATABASE_URL;
+const client = REMOTE
+  ? createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN })
+  : createClient({ url: 'file:' + path.join(DATA_DIR, 'maeumgyeol.db') });
 
-db.exec(`
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT NOT NULL UNIQUE,
@@ -118,17 +122,31 @@ CREATE TABLE IF NOT EXISTS outbox (
 CREATE INDEX IF NOT EXISTS idx_results_user ON test_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
 CREATE INDEX IF NOT EXISTS idx_msgs_session ON messages(session_id);
-`);
+`;
 
-// 마이그레이션: 상담자 해석 공개 여부
-if (!db.prepare('PRAGMA table_info(drawings)').all().some((c) => c.name === 'note_shared')) db.exec('ALTER TABLE drawings ADD COLUMN note_shared INTEGER NOT NULL DEFAULT 0');
-
-if (!db.prepare('PRAGMA table_info(chat_sessions)').all().some((c) => c.name === 'ai_active')) db.exec('ALTER TABLE chat_sessions ADD COLUMN ai_active INTEGER NOT NULL DEFAULT 1');
+const norm = (v) => (typeof v === 'bigint' ? Number(v) : v === undefined ? null : v);
+const plain = (r) => (r ? Object.fromEntries(Object.entries(r).map(([k, v]) => [k, norm(v)])) : undefined);
+const exec = (sql, p) => client.execute({ sql, args: p.map(norm) });
 
 const q = {
-  get: (sql, ...p) => db.prepare(sql).get(...p),
-  all: (sql, ...p) => db.prepare(sql).all(...p),
-  run: (sql, ...p) => db.prepare(sql).run(...p),
+  get: async (sql, ...p) => plain((await exec(sql, p)).rows[0]),
+  all: async (sql, ...p) => (await exec(sql, p)).rows.map(plain),
+  run: async (sql, ...p) => { const r = await exec(sql, p); return { changes: r.rowsAffected, lastInsertRowid: Number(r.lastInsertRowid ?? 0) }; },
 };
 
-module.exports = { db, q, DATA_DIR };
+async function addColumn(table, col, def) {
+  const cols = await q.all(`PRAGMA table_info(${table})`);
+  if (!cols.some((c) => c.name === col)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+}
+
+const ready = (async () => {
+  if (!REMOTE) await client.execute('PRAGMA journal_mode = WAL');
+  await client.executeMultiple(SCHEMA);
+  await addColumn('drawings', 'note_shared', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumn('drawings', 'image_enc', 'TEXT');
+  await addColumn('chat_sessions', 'ai_active', 'INTEGER NOT NULL DEFAULT 1');
+  console.log(`[DB] ${REMOTE ? 'Turso 클라우드 데이터베이스 연결' : '로컬 파일 데이터베이스 사용 (' + DATA_DIR + ')'}`);
+  if (!REMOTE && process.env.RENDER) console.warn('[DB 경고] Render에서 TURSO_DATABASE_URL 없이 실행 중입니다. 서버가 재시작되면 데이터가 사라집니다!');
+})();
+
+module.exports = { q, ready, DATA_DIR, REMOTE };

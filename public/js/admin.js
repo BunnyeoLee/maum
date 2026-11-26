@@ -54,7 +54,8 @@ async function overview(pane, _p, _q, onRoute, o) {
   const { alerts: open } = await api('/admin/alerts?status=open');
   const maxT = Math.max(1, ...o.byTest.map((t) => t.n)), maxG = Math.max(1, ...o.byGroup.map((g) => g.n));
   pane.innerHTML = `<h1 style="font-size:1.8rem">안녕하세요, ${e(state.user.name)} 님</h1>
-    ${o.devMail ? '<p class="devnote">메일 서버(SMTP)가 설정되지 않아 개발 모드로 동작 중이에요. 보낸 메일은 "보낸 메일"에 저장되고, 인증번호는 로그인 화면에 표시됩니다.</p>' : ''}
+    ${o.tempDb ? '<p class="devnote" style="background:var(--coral-l);border-color:var(--coral);color:#7a2c25"><b>데이터가 저장되지 않는 임시 상태예요.</b> Render 설정에 TURSO_DATABASE_URL 과 TURSO_AUTH_TOKEN 을 넣어 주세요. 지금은 서버가 다시 시작되면 가입 정보와 기록이 사라집니다.</p>' : ''}
+    ${o.devMail ? '<p class="devnote">메일 발송이 설정되지 않아 시험 모드로 동작 중이에요. 메일은 실제로 나가지 않고 "보낸 메일"에만 저장되며, 인증번호가 로그인 화면에 그대로 표시됩니다. 실제 운영 전에 Brevo 설정(BREVO_API_KEY)을 꼭 해 주세요.</p>' : ''}
     <div class="stats" style="margin-top:14px">
       <a class="stat ${o.alerts[3] ? 'hot' : ''}" href="#/admin/alerts" style="text-decoration:none;color:inherit"><span>긴급 알림</span><b>${o.alerts[3]}</b></a>
       <a class="stat" href="#/admin/alerts" style="text-decoration:none;color:inherit"><span>위험 알림</span><b>${o.alerts[2]}</b></a>

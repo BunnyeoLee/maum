@@ -118,7 +118,7 @@ function loginForm(el, preset) {
   const f = $('#lf', el);
   let stage = preset?.sent ? 'code' : 'request';
   const showCode = (dev) => {
-    $('#codeArea', el).innerHTML = `${dev ? `<p class="devnote">개발 모드: 메일 서버가 설정되지 않아 인증번호를 화면에 보여 드려요 → <b>${dev}</b></p>` : '<p class="small muted">메일함을 확인해 주세요. (스팸함도 확인해 주세요)</p>'}
+    $('#codeArea', el).innerHTML = `${dev ? `<p class="devnote">시험 모드: 메일 발송이 아직 설정되지 않아 인증번호를 화면에 보여 드려요 → <b>${dev}</b></p>` : '<p class="small muted">메일함을 확인해 주세요. (스팸함도 확인해 주세요)</p>'}
       <label class="field"><span>인증번호 6자리</span><input class="input" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required value="${dev || ''}"></label>
       <button type="button" class="btn soft sm" id="resend">인증번호 다시 받기</button><div style="height:12px"></div>`;
     $('#lbtn', el).textContent = '로그인';

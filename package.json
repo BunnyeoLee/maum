@@ -11,10 +11,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "express": "^4.22.3",
     "nodemailer": "^10.6.1"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22"
   }
 }
